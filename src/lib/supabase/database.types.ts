@@ -203,6 +203,7 @@ export type Database = {
           estado_dns: Database["public"]["Enums"]["sitio_estado_dns"];
           estatus: Database["public"]["Enums"]["sitio_estatus"];
           id: string;
+          netlify_build_hook_url: string | null;
           netlify_site_id: string | null;
           subdominio: string | null;
           ultimo_deploy_at: string | null;
@@ -216,6 +217,7 @@ export type Database = {
           estado_dns?: Database["public"]["Enums"]["sitio_estado_dns"];
           estatus?: Database["public"]["Enums"]["sitio_estatus"];
           id?: string;
+          netlify_build_hook_url?: string | null;
           netlify_site_id?: string | null;
           subdominio?: string | null;
           ultimo_deploy_at?: string | null;
@@ -229,6 +231,7 @@ export type Database = {
           estado_dns?: Database["public"]["Enums"]["sitio_estado_dns"];
           estatus?: Database["public"]["Enums"]["sitio_estatus"];
           id?: string;
+          netlify_build_hook_url?: string | null;
           netlify_site_id?: string | null;
           subdominio?: string | null;
           ultimo_deploy_at?: string | null;

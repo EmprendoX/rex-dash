@@ -78,6 +78,36 @@ export async function getSite(siteId: string): Promise<NetlifySite> {
   return netlify.get<NetlifySite>(`/sites/${siteId}`);
 }
 
+export interface NetlifyBuildHook {
+  id: string;
+  title: string;
+  branch: string;
+  url: string;
+  site_id: string;
+  created_at: string;
+}
+
+/**
+ * Create a build hook for the site. The returned URL is what the template's
+ * /admin POSTs to after a broker save, to trigger an auto-rebuild.
+ * Idempotent-ish at the app level: caller should check if we already have
+ * one for this site before creating a duplicate.
+ */
+export async function createBuildHook(
+  siteId: string,
+  title = "RealEX admin auto-rebuild",
+  branch = "main",
+): Promise<NetlifyBuildHook> {
+  return netlify.post<NetlifyBuildHook>(`/sites/${siteId}/build_hooks`, {
+    title,
+    branch,
+  });
+}
+
+export async function listBuildHooks(siteId: string): Promise<NetlifyBuildHook[]> {
+  return netlify.get<NetlifyBuildHook[]>(`/sites/${siteId}/build_hooks`);
+}
+
 /**
  * Trigger a build on every provided site id with a small throttle to stay under
  * Netlify's rate limit (500 req / min per token; we go conservative). Returns

@@ -8,6 +8,8 @@ import {
   triggerBuild,
   getLatestDeploy,
   rebuildBatch,
+  createBuildHook,
+  listBuildHooks,
 } from "@/lib/netlify/sites";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -212,9 +214,26 @@ export async function linkNetlifySite(
     .maybeSingle();
   if (!sitio) return { ok: false, error: "Sitio no encontrado." };
 
+  // Try to auto-create a build hook so the template's /admin can auto-rebuild
+  // after a broker save. If Netlify returns an existing one, reuse it.
+  let buildHookUrl: string | null = null;
+  try {
+    const existing = await listBuildHooks(id);
+    const priorHook = existing.find((h) => h.title === "RealEX admin auto-rebuild");
+    const hook = priorHook ?? (await createBuildHook(id));
+    buildHookUrl = hook.url;
+  } catch (err) {
+    console.error("[linkNetlifySite] build hook setup failed:", err);
+    // Non-fatal: operator can paste hook later if needed.
+  }
+
   const { error } = await supabase
     .from("sitios")
-    .update({ netlify_site_id: id, estatus: "creado" })
+    .update({
+      netlify_site_id: id,
+      netlify_build_hook_url: buildHookUrl,
+      estatus: "creado",
+    })
     .eq("id", sitioId);
   if (error) {
     if (error.code === "23505") {
