@@ -5,7 +5,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/format";
 import { siteConfigSchema } from "@/lib/validators/siteConfig";
 import {
-  createNetlifySite,
   triggerBuild,
   getLatestDeploy,
   rebuildBatch,
@@ -138,50 +137,69 @@ export async function saveSitioMeta(
 }
 
 /**
- * Actually create the site in Netlify. Requires the sitios row to already
- * have subdominio set. Idempotent-ish: refuses if netlify_site_id already exists.
+ * Link an already-created Netlify site to this sitios row.
+ *
+ * Fase 1: la creación del sitio Netlify se hace manualmente vía UI
+ * (Netlify no permite auto-linkeo confiable de repos vía API sin conocer
+ * el installation_id del GitHub App). El operador crea el sitio en Netlify
+ * con el flow "New site from Git", copia el Site ID desde Site settings, y
+ * lo pega acá. A partir de ese momento el dashboard puede triggerear rebuild,
+ * refrescar estatus y suspender vía API.
  */
-export async function provisionOnNetlify(
+export async function linkNetlifySite(
   sitioId: string,
-): Promise<{ ok: true; netlify_site_id: string; url: string } | { ok: false; error: string }> {
+  netlifySiteId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const id = netlifySiteId.trim();
+  const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(id)) {
+    return { ok: false, error: "Netlify Site ID debe ser un UUID (36 chars con guiones)." };
+  }
+
   const supabase = createSupabaseServerClient();
-  const { data: sitio, error } = await supabase
+  const { data: sitio } = await supabase
     .from("sitios")
-    .select("id, subdominio, netlify_site_id, cliente_id")
+    .select("cliente_id")
     .eq("id", sitioId)
     .maybeSingle();
-  if (error || !sitio) return { ok: false, error: "Sitio no encontrado." };
-  if (sitio.netlify_site_id) {
-    return { ok: false, error: "Ya existe un site_id de Netlify para este sitio." };
-  }
-  if (!sitio.subdominio) {
-    return { ok: false, error: "Falta subdominio antes de crear el sitio Netlify." };
+  if (!sitio) return { ok: false, error: "Sitio no encontrado." };
+
+  const { error } = await supabase
+    .from("sitios")
+    .update({ netlify_site_id: id, estatus: "creado" })
+    .eq("id", sitioId);
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, error: "Ese Netlify Site ID ya está linkeado a otro sitio." };
+    }
+    return { ok: false, error: error.message };
   }
 
-  try {
-    const created = await createNetlifySite({
-      name: sitio.subdominio,
-      clientId: sitio.id,
-    });
-    await supabase
-      .from("sitios")
-      .update({ netlify_site_id: created.id, estatus: "creado" })
-      .eq("id", sitio.id);
+  // Cliente 'pagado' → 'generado' cuando se termina de provisionar.
+  await supabase
+    .from("clientes")
+    .update({ estatus: "generado" })
+    .eq("id", sitio.cliente_id)
+    .eq("estatus", "pagado");
 
-    // Advance cliente to 'generado' once we've provisioned.
-    await supabase
-      .from("clientes")
-      .update({ estatus: "generado" })
-      .eq("id", sitio.cliente_id)
-      .eq("estatus", "pagado");
+  revalidatePath("/app/sitios");
+  revalidatePath(`/app/sitios/${sitioId}`);
+  revalidatePath(`/app/clientes/${sitio.cliente_id}`);
+  return { ok: true };
+}
 
-    revalidatePath("/app/sitios");
-    revalidatePath(`/app/sitios/${sitio.id}`);
-    revalidatePath(`/app/clientes/${sitio.cliente_id}`);
-    return { ok: true, netlify_site_id: created.id, url: created.ssl_url };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
-  }
+export async function unlinkNetlifySite(
+  sitioId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase
+    .from("sitios")
+    .update({ netlify_site_id: null, estatus: "creado", ultimo_deploy_at: null })
+    .eq("id", sitioId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/app/sitios/${sitioId}`);
+  return { ok: true };
 }
 
 export async function triggerSiteBuild(

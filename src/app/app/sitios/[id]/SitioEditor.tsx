@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   saveSitioConfig,
   saveSitioMeta,
-  provisionOnNetlify,
+  linkNetlifySite,
+  unlinkNetlifySite,
   triggerSiteBuild,
   refreshDeployStatus,
   suspendSitio,
@@ -35,6 +36,7 @@ export default function SitioEditor({
   const [config, setConfig] = useState(initialConfig);
   const [sub, setSub] = useState(subdominio);
   const [dom, setDom] = useState(dominioCustom);
+  const [pastedSiteId, setPastedSiteId] = useState("");
 
   function run(fn: () => Promise<void>) {
     setNotice(null);
@@ -69,12 +71,25 @@ export default function SitioEditor({
     });
   }
 
-  function onProvision() {
-    if (!confirm(`Crear sitio en Netlify con subdominio "${sub}". ¿Confirmar?`)) return;
+  function onLink() {
     run(async () => {
-      const r = await provisionOnNetlify(sitioId);
+      const r = await linkNetlifySite(sitioId, pastedSiteId);
       if (r.ok) {
-        setNotice(`Sitio creado en Netlify: ${r.url}`);
+        setNotice("Netlify site linkeado. Ya podés hacer rebuilds desde acá.");
+        setPastedSiteId("");
+        router.refresh();
+      } else {
+        setNotice(`Error: ${r.error}`);
+      }
+    });
+  }
+
+  function onUnlink() {
+    if (!confirm("Desvincular este Netlify site del dashboard. No borra el sitio en Netlify, solo el link. ¿Confirmar?")) return;
+    run(async () => {
+      const r = await unlinkNetlifySite(sitioId);
+      if (r.ok) {
+        setNotice("Netlify site desvinculado.");
         router.refresh();
       } else {
         setNotice(`Error: ${r.error}`);
@@ -113,6 +128,9 @@ export default function SitioEditor({
       }
     });
   }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
   return (
     <div className="space-y-6">
@@ -189,62 +207,124 @@ export default function SitioEditor({
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
-        <h2 className="text-sm font-semibold text-slate-900">Netlify</h2>
-        <div className="mt-2 text-xs text-slate-600 space-y-0.5">
-          <div>
-            Netlify site id:{" "}
-            {netlifySiteId ? (
-              <span className="font-mono">{netlifySiteId}</span>
-            ) : (
-              <span className="text-slate-400">no creado todavía</span>
-            )}
-          </div>
-          <div>Estatus interno: <strong>{estatus}</strong></div>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {!netlifySiteId && (
+      {!netlifySiteId ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-sm font-semibold text-slate-900">Crear el sitio en Netlify (paso manual)</h2>
+          <p className="mt-2 text-xs text-slate-600">
+            Netlify no permite vincular un repo privado de forma confiable vía API. Fase 1: se crea en la UI.
+            Después pegás el <strong>Site ID</strong> acá y el dashboard maneja todo lo demás
+            (rebuild, estatus, suspender).
+          </p>
+
+          <ol className="mt-4 space-y-3 text-sm text-slate-700 list-decimal list-inside">
+            <li>
+              Abrí{" "}
+              <a
+                href="https://app.netlify.com/start/deploy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-900 underline hover:no-underline"
+              >
+                Netlify → New site from Git
+              </a>
+              , conectá GitHub, elegí <code className="font-mono text-xs">EmprendoX/Real-Estate-X_Engl</code>, branch <code className="font-mono text-xs">main</code>.
+            </li>
+            <li>
+              Subdominio: usá <code className="font-mono text-xs">{sub || "(guardá antes el subdominio arriba)"}</code>.
+            </li>
+            <li>
+              En <strong>Advanced &rarr; Environment variables</strong>, pegá estas tres:
+              <div className="mt-2 space-y-1">
+                <EnvRow k="CLIENT_ID" v={sitioId} />
+                <EnvRow k="SUPABASE_URL" v={supabaseUrl} />
+                <EnvRow k="SUPABASE_ANON_KEY" v={supabaseAnonKey} />
+              </div>
+            </li>
+            <li>Click <strong>Deploy site</strong>. Esperá al build (~2 min).</li>
+            <li>
+              En <strong>Site configuration &rarr; General &rarr; Site details</strong>, copiá el <strong>Site ID</strong>
+              (UUID de 36 chars).
+            </li>
+            <li>Pegalo acá abajo y <strong>Guardar Netlify Site ID</strong>.</li>
+          </ol>
+
+          <div className="mt-6 flex items-end gap-2">
+            <label className="flex-1">
+              <span className="block text-sm font-medium text-slate-700">Netlify Site ID</span>
+              <input
+                value={pastedSiteId}
+                onChange={(e) => setPastedSiteId(e.target.value)}
+                placeholder="00000000-0000-0000-0000-000000000000"
+                className={`${inputCls} mt-1 font-mono text-xs`}
+              />
+            </label>
             <button
               type="button"
-              onClick={onProvision}
-              disabled={pending || !sub}
+              onClick={onLink}
+              disabled={pending || !pastedSiteId.trim()}
+              className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              Guardar Netlify Site ID
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 className="text-sm font-semibold text-slate-900">Netlify</h2>
+          <div className="mt-2 text-xs text-slate-600 space-y-0.5">
+            <div>
+              Site ID:{" "}
+              <span className="font-mono">{netlifySiteId}</span>
+            </div>
+            <div>Estatus interno: <strong>{estatus}</strong></div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onBuild}
+              disabled={pending}
               className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
             >
-              Crear sitio en Netlify
+              Rebuild
             </button>
-          )}
-          {netlifySiteId && (
-            <>
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={pending}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              Refrescar estatus
+            </button>
+            {estatus !== "suspendido" && (
               <button
                 type="button"
-                onClick={onBuild}
+                onClick={onSuspend}
                 disabled={pending}
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
               >
-                Rebuild
+                Suspender
               </button>
-              <button
-                type="button"
-                onClick={onRefresh}
-                disabled={pending}
-                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-              >
-                Refrescar estatus
-              </button>
-              {estatus !== "suspendido" && (
-                <button
-                  type="button"
-                  onClick={onSuspend}
-                  disabled={pending}
-                  className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
-                >
-                  Suspender
-                </button>
-              )}
-            </>
-          )}
+            )}
+            <button
+              type="button"
+              onClick={onUnlink}
+              disabled={pending}
+              className="ml-auto rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+            >
+              Desvincular
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+    </div>
+  );
+}
+
+function EnvRow({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="rounded-md bg-slate-50 border border-slate-200 px-3 py-2 flex items-center gap-2">
+      <code className="font-mono text-xs text-slate-500 w-40 shrink-0">{k}</code>
+      <code className="font-mono text-xs text-slate-900 break-all">{v || "(faltante)"}</code>
     </div>
   );
 }
