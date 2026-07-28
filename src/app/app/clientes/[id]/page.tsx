@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDate, formatMXN } from "@/lib/format";
 import CrearSitioButton from "./CrearSitioButton";
+import InvitarBrokerButton from "./InvitarBrokerButton";
 
 export default async function ClienteDetailPage({
   params,
@@ -44,6 +45,10 @@ export default async function ClienteDetailPage({
 
   const afiliado = Array.isArray(cliente.afiliados) ? cliente.afiliados[0] : cliente.afiliados;
 
+  const suggestedBrokerEmail =
+    cliente.email ??
+    `broker-${(cliente.inmobiliaria || cliente.nombre).toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 20)}@example.com`;
+
   return (
     <div className="space-y-8">
       <div>
@@ -74,6 +79,14 @@ export default async function ClienteDetailPage({
               ) : (
                 "—"
               )}
+            </div>
+            <div className="pt-2 mt-2 border-t border-slate-100">
+              <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Acceso del broker</div>
+              <InvitarBrokerButton
+                clienteId={cliente.id}
+                hasLinkedBroker={!!cliente.user_id}
+                suggestedEmail={suggestedBrokerEmail}
+              />
             </div>
           </div>
         </section>

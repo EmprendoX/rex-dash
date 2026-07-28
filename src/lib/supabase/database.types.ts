@@ -64,6 +64,7 @@ export type Database = {
           notas: string | null;
           origen: Database["public"]["Enums"]["cliente_origen"];
           updated_at: string;
+          user_id: string | null;
           whatsapp: string | null;
         };
         Insert: {
@@ -78,6 +79,7 @@ export type Database = {
           notas?: string | null;
           origen?: Database["public"]["Enums"]["cliente_origen"];
           updated_at?: string;
+          user_id?: string | null;
           whatsapp?: string | null;
         };
         Update: {
@@ -92,6 +94,7 @@ export type Database = {
           notas?: string | null;
           origen?: Database["public"]["Enums"]["cliente_origen"];
           updated_at?: string;
+          user_id?: string | null;
           whatsapp?: string | null;
         };
         Relationships: [
@@ -233,6 +236,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_roles: {
+        Row: {
+          created_at: string;
+          role: Database["public"]["Enums"]["user_role"];
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          role?: Database["public"]["Enums"]["user_role"];
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          role?: Database["public"]["Enums"]["user_role"];
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       suscripciones: {
         Row: {
           cliente_id: string;
@@ -271,7 +292,14 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      current_user_cliente_id: { Args: Record<string, never>; Returns: string };
+      current_user_is_operator: { Args: Record<string, never>; Returns: boolean };
+      invite_broker: {
+        Args: { p_cliente_id: string; p_email: string; p_password: string };
+        Returns: string;
+      };
+    };
     Enums: {
       afiliado_estatus: "activo" | "pausado" | "baja";
       cliente_estatus:
@@ -294,6 +322,7 @@ export type Database = {
         | "live"
         | "suspendido";
       suscripcion_estatus: "activa" | "pausada" | "cancelada";
+      user_role: "operator" | "broker";
     };
     CompositeTypes: Record<string, never>;
   };
