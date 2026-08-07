@@ -12,7 +12,7 @@ export default async function SitioDetailPage({
   const supabase = createSupabaseServerClient();
   const { data: sitio } = await supabase
     .from("sitios")
-    .select("*, clientes(id, nombre, inmobiliaria)")
+    .select("*, clientes(id, nombre, inmobiliaria, subdominio_propuesto)")
     .eq("id", params.id)
     .maybeSingle();
 
@@ -67,6 +67,7 @@ export default async function SitioDetailPage({
         dominioCustom={sitio.dominio_custom ?? ""}
         netlifySiteId={sitio.netlify_site_id ?? null}
         estatus={sitio.estatus}
+        subdominioPropuesto={cli?.subdominio_propuesto ?? null}
       />
     </div>
   );

@@ -31,7 +31,9 @@ export default async function ClientesPage({ searchParams }: Props) {
 
   let q = supabase
     .from("clientes")
-    .select("id, nombre, inmobiliaria, estatus, origen, afiliado_id, created_at, afiliados(nombre)")
+    .select(
+      "id, nombre, inmobiliaria, estatus, origen, afiliado_id, created_at, user_id, onboarding_completed_at, onboarding_token, afiliados(nombre)",
+    )
     .order("created_at", { ascending: false });
 
   if (searchParams.estatus) q = q.eq("estatus", searchParams.estatus as Enums<"cliente_estatus">);
@@ -107,6 +109,11 @@ export default async function ClientesPage({ searchParams }: Props) {
                     <Link href={`/app/clientes/${c.id}`} className="font-medium text-slate-900 hover:underline">
                       {c.nombre}
                     </Link>
+                    <OnboardingBadge
+                      completed={!!c.onboarding_completed_at}
+                      linkGenerated={!!c.onboarding_token}
+                      hasUser={!!c.user_id}
+                    />
                   </td>
                   <td className="px-4 py-3 text-slate-600">{c.inmobiliaria ?? "—"}</td>
                   <td className="px-4 py-3">
@@ -129,6 +136,38 @@ export default async function ClientesPage({ searchParams }: Props) {
       </div>
     </div>
   );
+}
+
+function OnboardingBadge({
+  completed,
+  linkGenerated,
+  hasUser,
+}: {
+  completed: boolean;
+  linkGenerated: boolean;
+  hasUser: boolean;
+}) {
+  if (completed && hasUser) {
+    return (
+      <span
+        className="ml-2 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800"
+        title="El cliente completó el onboarding — listo para provisionar Netlify"
+      >
+        ✓ onboarding
+      </span>
+    );
+  }
+  if (linkGenerated) {
+    return (
+      <span
+        className="ml-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+        title="Link de onboarding generado, esperando que el cliente lo complete"
+      >
+        link enviado
+      </span>
+    );
+  }
+  return null;
 }
 
 function FilterSelect({

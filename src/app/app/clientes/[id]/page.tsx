@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDate, formatMXN } from "@/lib/format";
 import CrearSitioButton from "./CrearSitioButton";
 import InvitarBrokerButton from "./InvitarBrokerButton";
+import OnboardingLinkButton from "./OnboardingLinkButton";
 
 export default async function ClienteDetailPage({
   params,
@@ -82,11 +83,23 @@ export default async function ClienteDetailPage({
             </div>
             <div className="pt-2 mt-2 border-t border-slate-100">
               <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Acceso del broker</div>
-              <InvitarBrokerButton
+              <OnboardingLinkButton
                 clienteId={cliente.id}
                 hasLinkedBroker={!!cliente.user_id}
-                suggestedEmail={suggestedBrokerEmail}
+                existingToken={cliente.onboarding_token}
+                tokenCreatedAt={cliente.onboarding_token_created_at}
+                onboardingCompletedAt={cliente.onboarding_completed_at}
               />
+              {!cliente.user_id && !cliente.onboarding_completed_at && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <div className="text-xs text-slate-500 mb-1">O crear la cuenta manualmente:</div>
+                  <InvitarBrokerButton
+                    clienteId={cliente.id}
+                    hasLinkedBroker={!!cliente.user_id}
+                    suggestedEmail={suggestedBrokerEmail}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </section>

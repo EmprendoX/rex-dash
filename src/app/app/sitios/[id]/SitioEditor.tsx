@@ -19,6 +19,7 @@ interface Props {
   dominioCustom: string;
   netlifySiteId: string | null;
   estatus: string;
+  subdominioPropuesto: string | null;
 }
 
 export default function SitioEditor({
@@ -28,6 +29,7 @@ export default function SitioEditor({
   dominioCustom,
   netlifySiteId,
   estatus,
+  subdominioPropuesto,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -160,6 +162,18 @@ export default function SitioEditor({
               />
               <span className="text-sm text-slate-500">.netlify.app</span>
             </div>
+            {subdominioPropuesto && subdominioPropuesto !== sub && (
+              <div className="mt-1 text-xs text-slate-500">
+                El cliente propuso:{" "}
+                <button
+                  type="button"
+                  onClick={() => setSub(subdominioPropuesto)}
+                  className="font-mono text-slate-900 underline hover:no-underline"
+                >
+                  {subdominioPropuesto}
+                </button>
+              </div>
+            )}
           </label>
           <label className="block">
             <span className="block text-sm font-medium text-slate-700">Dominio custom</span>

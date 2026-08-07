@@ -62,7 +62,11 @@ export type Database = {
           inmobiliaria: string | null;
           nombre: string;
           notas: string | null;
+          onboarding_completed_at: string | null;
+          onboarding_token: string | null;
+          onboarding_token_created_at: string | null;
           origen: Database["public"]["Enums"]["cliente_origen"];
+          subdominio_propuesto: string | null;
           updated_at: string;
           user_id: string | null;
           whatsapp: string | null;
@@ -77,7 +81,11 @@ export type Database = {
           inmobiliaria?: string | null;
           nombre: string;
           notas?: string | null;
+          onboarding_completed_at?: string | null;
+          onboarding_token?: string | null;
+          onboarding_token_created_at?: string | null;
           origen?: Database["public"]["Enums"]["cliente_origen"];
+          subdominio_propuesto?: string | null;
           updated_at?: string;
           user_id?: string | null;
           whatsapp?: string | null;
@@ -92,7 +100,11 @@ export type Database = {
           inmobiliaria?: string | null;
           nombre?: string;
           notas?: string | null;
+          onboarding_completed_at?: string | null;
+          onboarding_token?: string | null;
+          onboarding_token_created_at?: string | null;
           origen?: Database["public"]["Enums"]["cliente_origen"];
+          subdominio_propuesto?: string | null;
           updated_at?: string;
           user_id?: string | null;
           whatsapp?: string | null;
@@ -301,6 +313,30 @@ export type Database = {
       invite_broker: {
         Args: { p_cliente_id: string; p_email: string; p_password: string };
         Returns: string;
+      };
+      generate_onboarding_token: {
+        Args: { p_cliente_id: string };
+        Returns: string;
+      };
+      complete_onboarding: {
+        Args: {
+          p_token: string;
+          p_email: string;
+          p_password: string;
+          p_subdominio_propuesto: string;
+          p_config: Json;
+        };
+        Returns: string;
+      };
+      get_cliente_by_onboarding_token: {
+        Args: { p_token: string };
+        Returns: {
+          nombre: string;
+          inmobiliaria: string | null;
+          email: string | null;
+          whatsapp: string | null;
+          token_created_at: string;
+        }[];
       };
     };
     Enums: {
